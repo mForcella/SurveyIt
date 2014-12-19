@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Survey It!</string>
+    <string name="action_settings">Settings</string>
+    <string name="welcome">Welcome to Survey It!</string>
+    <string name="survey_select">Please select a survey to work on!</string>
+    <string name="choose_survey">Choose your survey!</string>
+    <string name="choose_object">Select a survey object!</string>
+    <string name="choose_value">Select a response!</string>
+    <string name="surv_name">Name</string>
+    <string name="surv_loc">Location</string>
+    <string name="surv_obs">Observer(s)</string>
+    <string name="surv_comm">Comments</string>
+    <string name="surv_date">Date</string>
+    <string name="begin_survey">Start Surveying!</string>
+    <string name="enter_survey_detail">Enter survey details before continuing.</string>
+    <string name="survey_objects">View Survey Objects</string>
+    <string name="sightings">View Sightings</string>
+    <string name="record">Record New Sighting</string>
+    <string name="upload">Upload Sightings</string>
+    <string name="change_survey">Change Survey</string>
+    <string name="survey_resume">Resume an outing in progress</string>
+    <string name="new_survey">Or create a new outing</string>
+    <string name="title_activity_survey_main">SurveyMain</string>
+    <string name="title_activity_create_survey_instance">CreateSurveyInstance</string>
+    <string name="title_activity_view_objects">ViewObjects</string>
+    <string name="title_activity_view_sightings">ViewSightings</string>
+    <string name="title_activity_display_object">DisplayObject</string>
+    <string name="title_activity_record_sighting">RecordSighting</string>
+    <string name="title_activity_display_sighting">DisplaySighting</string>
+
+</resources>

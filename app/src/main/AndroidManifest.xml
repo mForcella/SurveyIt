@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="edu.newpaltz.surveyit" >
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:name=".MyApplication"
+        android:allowBackup="true"
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/AppTheme" >
+        <activity
+            android:name=".MySurvey"
+            android:label="@string/app_name" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".SurveyMain"
+            android:label="@string/title_activity_survey_main" >
+        </activity>
+        <activity
+            android:name=".CreateSurveyInstance"
+            android:label="@string/title_activity_create_survey_instance"
+            android:windowSoftInputMode="stateHidden" >
+        </activity>
+        <activity
+            android:name=".ViewObjects"
+            android:label="@string/title_activity_view_objects" >
+        </activity>
+        <activity
+            android:name=".ViewSightings"
+            android:label="@string/title_activity_view_sightings" >
+        </activity>
+        <activity
+            android:name=".DisplayObject"
+            android:label="@string/title_activity_display_object" >
+        </activity>
+        <activity
+            android:name=".RecordSighting"
+            android:label="@string/title_activity_record_sighting"
+            android:windowSoftInputMode="stateHidden"  >
+        </activity>
+        <activity
+            android:name=".DisplaySighting"
+            android:label="@string/title_activity_display_sighting" >
+        </activity>
+    </application>
+
+</manifest>
