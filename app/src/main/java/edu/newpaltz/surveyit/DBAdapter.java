@@ -10,6 +10,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.util.Log;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -475,6 +476,32 @@ public class DBAdapter extends SQLiteOpenHelper {
         return surveyQuestions;
     }
 
+    // get a list of survey objects images
+    public ArrayList<SurveyObjectImage> getSurveyObjectImages(String whereClause) {
+        ArrayList<SurveyObjectImage> surveyObjects = new ArrayList<SurveyObjectImage>();
+        SQLiteDatabase db = this.getWritableDatabase();
+        String query = "SELECT * FROM surveyObjectImage where oId in (" + whereClause + ");";
+        Cursor c = db.rawQuery(query, null);
+        if (c.moveToFirst()) {
+            do {
+                // get survey object values
+                String id = c.getString(0);
+                String oid = c.getString(1);
+                String jpg = c.getString(2);
+                String ssid = c.getString(3);
+                String date = c.getString(4);
+                String rank = c.getString(5);
+                String flag = c.getString(6);
+                // create survey object image and add to array
+                SurveyObjectImage soi = new SurveyObjectImage(id, oid, jpg, ssid, date, rank, flag);
+                surveyObjects.add(soi);
+            } while (c.moveToNext());
+        }
+        c.close();
+        db.close();
+        return surveyObjects;
+    }
+
     // get a list of all survey instances
     public ArrayList<SurveyInstance> getSurveyInstances(String sid) {
         ArrayList<SurveyInstance> outings = new ArrayList<SurveyInstance>();
@@ -569,4 +596,4 @@ public class DBAdapter extends SQLiteOpenHelper {
         db.close();
         return responses;
     }
-}
+    }

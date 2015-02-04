@@ -45,6 +45,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -165,6 +166,16 @@ public class MySurvey extends Activity {
                         MyApplication.mListObjectVals = db.getSurveyObjectValues(MyApplication.mSurveyId);
                         MyApplication.mListQuestions = db.getSurveyQuestions(MyApplication.mSurveyId);
                         MyApplication.mQuNum = MyApplication.mListQuestions.size();
+                        // get survey object images
+                        // get list of object IDs
+                        String whereClause = "";
+                        for (SurveyObject so: MyApplication.mListObjects) {
+                            whereClause += so.getId()+",";
+                        }
+                        if (whereClause.length() > 1) {
+                            whereClause = whereClause.substring(0, whereClause.length() - 1); // remove last comma
+                        }
+                        MyApplication.mListObjectImages = db.getSurveyObjectImages(whereClause);
                         db.close();
                     }catch (IOException e) {
                         e.printStackTrace();
@@ -459,7 +470,9 @@ public class MySurvey extends Activity {
                 for (SurveyObject so: MyApplication.mListObjects) {
                     whereClause += so.getId()+",";
                 }
-                whereClause = whereClause.substring(0,whereClause.length()-1); // remove last comma
+                if (whereClause.length() > 1) {
+                    whereClause = whereClause.substring(0, whereClause.length() - 1); // remove last comma
+                }
                 List<NameValuePair> wc = new ArrayList<NameValuePair>();
                 wc.add(new BasicNameValuePair("where", whereClause));
                 JSONObject json = jsonParser.makeHttpRequest(MyApplication.getSurveyObjectImagesUrl, wc);
