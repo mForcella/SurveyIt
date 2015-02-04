@@ -32,7 +32,7 @@
  *   id:       Survey Question ID (integer)
  *   sid:      Survey ID (integer)
  *   question: Survey question being asked (text)
- *   resType:  Response type (text; 'text','single','multi','yesNo')
+ *   resType:  Response type ('text','single','multi','yesNo')
  *   resVal:   Response values, for 'single' and 'multi' only (text; values separated by '|')
  */
 
@@ -78,27 +78,40 @@ public class MySurvey extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.my_survey);
-
-        // get survey list from database
-        surveyList.add("Choose your survey!");
+        surveyList.add("Choose your survey!"); // dropdown prompt
         if (isOnline()) {
+            // online mode
+            // get survey list from online database
             new GetSurveyList().execute();
-            Toast toast = Toast.makeText(this, "Fetching surveys...", Toast.LENGTH_LONG);
+            Toast toast = Toast.makeText(this, "Fetching surveys from online database...", Toast.LENGTH_LONG);
             toast.show();
-
-            // add survey values to dropdown
-            Spinner spSurveys = (Spinner) findViewById(R.id.surveySelect);
-            ArrayAdapter<String> surveyAdapter = new ArrayAdapter<String>(
-                    myActivity, android.R.layout.simple_spinner_dropdown_item, surveyList);
-            surveyAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spSurveys.setAdapter(surveyAdapter);
-            spSurveys.setPromptId(R.string.choose_survey);
-            spSurveys.setOnItemSelectedListener(new MyOnItemSelectedListener());
         } else {
-            Toast toast = Toast.makeText(this, "No internet connection available", Toast.LENGTH_LONG);
+            // offline mode
+            Toast toast = Toast.makeText(this, "No internet connection available", Toast.LENGTH_SHORT);
             toast.show();
-            // ***change to offline mode
+            toast = Toast.makeText(this, "Accessing stored survey data...", Toast.LENGTH_LONG);
+            toast.show();
+            // get surveys from sqlite database
+            try {
+                DBAdapter db = new DBAdapter(this);
+                MyApplication.mListSurveys = db.getSurveys();
+                db.close();
+            }catch (IOException e) {
+                e.printStackTrace();
+            }
+            // build survey list for dropdown
+            for (Survey s: MyApplication.mListSurveys) {
+                surveyList.add(s.getId() + ":" + s.getName());
+            }
         }
+        // add survey list to dropdown
+        Spinner spSurveys = (Spinner) findViewById(R.id.surveySelect);
+        ArrayAdapter<String> surveyAdapter = new ArrayAdapter<String>(
+                myActivity, android.R.layout.simple_spinner_dropdown_item, surveyList);
+        surveyAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spSurveys.setAdapter(surveyAdapter);
+        spSurveys.setPromptId(R.string.choose_survey);
+        spSurveys.setOnItemSelectedListener(new MyOnItemSelectedListener());
     }
 
     /**
@@ -119,7 +132,6 @@ public class MySurvey extends Activity {
          */
         public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
             if (pos > 0) { // pos 0 = "Choose your survey!"
-
                 // get values from selected database
                 String surveyID = parent.getItemAtPosition(pos).toString().split(":")[0];
                 for (Survey survey: MyApplication.mListSurveys) {
@@ -129,23 +141,35 @@ public class MySurvey extends Activity {
                         MyApplication.mSurveyName = survey.getName();
                         MyApplication.mSurveyDesc = survey.getDesc();
                         MyApplication.mSurveyDate = survey.getDate();
+                        MyApplication.mOpNum = survey.getOpNum();
                     }
                 }
-
-                // get surveyObjectValues for the selected survey
-                new GetSurveyObjectValues().execute();
-
-                // get surveyObjects for the selected survey
-                new GetSurveyObjects().execute();
-
-                // get surveyQuestions for the selected survey
-                new GetSurveyQuestions().execute();
-
-                // download object images
-                new DownloadImageTask().execute();
-                Toast toast = Toast.makeText(myActivity, "Downloading object images...", Toast.LENGTH_SHORT);
-                toast.show();
-
+                if (isOnline()) {
+                    // online mode
+                    // get survey objects and questions for selected survey
+                    new GetSurveyObjectValues().execute();
+                    new GetSurveyObjects().execute();
+                    new GetSurveyQuestions().execute();
+                    // get list of object images
+                    new GetSurveyObjectImages().execute();
+                    // download object images
+                    new DownloadImageTask().execute();
+                    Toast toast = Toast.makeText(myActivity, "Downloading object images...", Toast.LENGTH_SHORT);
+                    toast.show();
+                } else {
+                    // offline mode
+                    // get survey objects and questions for selected survey
+                    try {
+                        DBAdapter db = new DBAdapter(myActivity);
+                        MyApplication.mListObjects = db.getSurveyObjects(MyApplication.mSurveyId);
+                        MyApplication.mListObjectVals = db.getSurveyObjectValues(MyApplication.mSurveyId);
+                        MyApplication.mListQuestions = db.getSurveyQuestions(MyApplication.mSurveyId);
+                        MyApplication.mQuNum = MyApplication.mListQuestions.size();
+                        db.close();
+                    }catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
                 // go to main screen with selected survey values
                 Intent mI = new Intent(myActivity, CreateSurveyInstance.class);
                 mI.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -184,12 +208,10 @@ public class MySurvey extends Activity {
                     JSONObject s = surveys.getJSONObject(i);
                     // creating a new survey object
                     Survey survey = new Survey(s.getString("id"), s.getString("name"),
-                            s.getString("descrip"), s.getString("date"), s.getInt("opNum"));
+                            s.getString("descrip"), s.getInt("opNum"), s.getString("date"));
                     MyApplication.mListSurveys.add(survey); // add survey object to array
                     // add string values to array for dropdown menu
                     surveyList.add(survey.getId() + ":" + survey.getName());
-                    // get opNum
-                    MyApplication.mOpNum = s.getInt("opNum");
                 }
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -416,14 +438,83 @@ public class MySurvey extends Activity {
     }
 
     /**
+     * Background task to get surveys questions.
+     */
+    private class GetSurveyObjectImages extends AsyncTask<String,String,String> {
+
+        /**
+         * This method performs a GET http operation. Queries the database to find all
+         * 'surveyObjectImage' entries for each object ID.
+         *
+         * @param     args    dummy variable, not used
+         * @return            dummy return value
+         */
+        protected String doInBackground(String... args) {
+            if (MyApplication.mListObjectImages == null) {
+                MyApplication.mListObjectImages = new ArrayList<SurveyObjectImage>();
+                // parse return value from http get request
+                JSONParser jsonParser = new JSONParser();
+                // build where clause from object IDs
+                String whereClause = "";
+                for (SurveyObject so: MyApplication.mListObjects) {
+                    whereClause += so.getId()+",";
+                }
+                whereClause = whereClause.substring(0,whereClause.length()-1); // remove last comma
+                List<NameValuePair> wc = new ArrayList<NameValuePair>();
+                wc.add(new BasicNameValuePair("where", whereClause));
+                JSONObject json = jsonParser.makeHttpRequest(MyApplication.getSurveyObjectImagesUrl, wc);
+                try {
+                    // get array of images
+                    JSONArray images = json.getJSONArray("images");
+                    for (int i = 0; i < images.length(); i++) {
+                        JSONObject soi = images.getJSONObject(i);
+                        // creating a new surveyQuestion object
+                        final SurveyObjectImage image = new SurveyObjectImage(
+                                soi.getString("id"), soi.getString("oId"), soi.getString("jpg"),
+                                soi.getString("ssId"), soi.getString("date"), soi.getString("rank"),
+                                soi.getString("flag"));
+                        MyApplication.mListObjectImages.add(image); // add object image to array
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+            return null;
+        }
+
+        /**
+         * This method checks the sqlite database and adds the survey image
+         * to the sqlite database if not present.
+         *
+         * @param     result      dummy variable, not used
+         */
+        protected void onPostExecute(String result) {
+            // check if surveyQuestions need to be added to sqlite database
+            try {
+                DBAdapter db = new DBAdapter(myActivity);
+                for (SurveyObjectImage soi: MyApplication.mListObjectImages) {
+                    // if survey image not in database
+                    if (!db.checkSurveyObjectImage(soi.getId())) {
+                        // add to database
+                        db.addSurveyObjectImage(soi);
+                    }
+                }
+                db.close();
+            }catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /**
      * Background task to download the object images and store them locally.
      */
     private class DownloadImageTask extends AsyncTask<String, String, String> {
 
         protected String doInBackground(String... urls) {
-            // get image url for each object
-            for (SurveyObject so: MyApplication.mListObjects) {
-                String url = so.getJpg();
+            // get image url for each object image
+            for (SurveyObjectImage soi: MyApplication.mListObjectImages) {
+                String url = soi.getJpg();
                 String urlInput = MyApplication.imageUrl+url;
                 DownloaderThread downloaderThread = new DownloaderThread(urlInput);
                 downloaderThread.start();

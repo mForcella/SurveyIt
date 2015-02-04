@@ -103,6 +103,15 @@ public class DBAdapter extends SQLiteOpenHelper {
             TABLE_SURVEY_OBJECT_VALUE + "(" + KEY_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
             KEY_SID + " INTEGER, " + KEY_OPNUM + " INTEGER, " + KEY_DESCRIP + " TEXT);";
 
+    // survey object image
+    private static final String TABLE_SURVEY_OBJECT_IMAGE = "surveyObjectImage";
+    private static final String KEY_RANK = "rank";
+    private static final String KEY_FLAG = "flag";
+    private static final String CREATE_SURVEY_OBJECT_IMAGE = "CREATE TABLE " +
+            TABLE_SURVEY_OBJECT_IMAGE + "(" + KEY_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+            KEY_OID + " INTEGER, " + KEY_JPG + " TEXT, " + KEY_SSID + " INTEGER, " +
+            KEY_DATE + " DATETIME, " + KEY_RANK + " INTEGER, " + KEY_FLAG + " TEXT);";
+
     // constructor
     public DBAdapter (Context context) throws IOException {
         super(context, DB_NAME, null, 1);
@@ -170,6 +179,7 @@ public class DBAdapter extends SQLiteOpenHelper {
         db.execSQL(CREATE_SURVEY_QUESTION);
         db.execSQL(CREATE_SURVEY_RESPONSE);
         db.execSQL(CREATE_SURVEY_SIGHTING);
+        db.execSQL(CREATE_SURVEY_OBJECT_IMAGE);
     }
 
     @Override
@@ -181,6 +191,7 @@ public class DBAdapter extends SQLiteOpenHelper {
         db.execSQL("DROP TABLE IF EXISTS" + TABLE_SURVEY_OBJECT);
         db.execSQL("DROP TABLE IF EXISTS" + TABLE_SURVEY_QUESTION);
         db.execSQL("DROP TABLE IF EXISTS" + TABLE_SURVEY_SIGHTING);
+        db.execSQL("DROP TABLE IF EXISTS" + TABLE_SURVEY_OBJECT_IMAGE);
         onCreate(db);
     }
 
@@ -251,6 +262,31 @@ public class DBAdapter extends SQLiteOpenHelper {
     public Boolean checkSurveyObject(String soId) {
         SQLiteDatabase db = this.getWritableDatabase();
         String query = "SELECT * FROM surveyObject WHERE id = '" + soId + "';";
+        Cursor c = db.rawQuery(query, null);
+        int count = c.getCount();
+        db.close();
+        return count > 0; // true if count is greater than zero
+    }
+
+    // add a new survey object value to the sqlite database
+    public void addSurveyObjectImage(SurveyObjectImage soi) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(KEY_ID, soi.getId());
+        values.put(KEY_OID, soi.getoId());
+        values.put(KEY_JPG, soi.getJpg());
+        values.put(KEY_SSID, soi.getSsId());
+        values.put(KEY_DATE, soi.getDate());
+        values.put(KEY_RANK, soi.getRank());
+        values.put(KEY_FLAG, soi.getFlag());
+        db.insert(TABLE_SURVEY_OBJECT_IMAGE, null, values);
+        db.close();
+    }
+
+    // checks if the surveyObject ID returns any results from database
+    public Boolean checkSurveyObjectImage(String soiId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        String query = "SELECT * FROM surveyObjectImage WHERE id = '" + soiId + "';";
         Cursor c = db.rawQuery(query, null);
         int count = c.getCount();
         db.close();
@@ -345,20 +381,114 @@ public class DBAdapter extends SQLiteOpenHelper {
         return srId;
     }
 
+    // get a list of surveys
+    public ArrayList<Survey> getSurveys() {
+        ArrayList<Survey> surveys = new ArrayList<Survey>();
+        SQLiteDatabase db = this.getWritableDatabase();
+        String query = "SELECT * FROM survey;";
+        Cursor c = db.rawQuery(query, null);
+        if (c.moveToFirst()) {
+            do {
+                // get survey values
+                String id = c.getString(0);
+                String name = c.getString(1);
+                String descrip = c.getString(2);
+                int opNum = Integer.parseInt(c.getString(3));
+                String date = c.getString(4);
+                // create survey and add to array
+                Survey s = new Survey(id, name, descrip, opNum, date);
+                surveys.add(s);
+            } while (c.moveToNext());
+        }
+        c.close();
+        db.close();
+        return surveys;
+    }
+
+    // get a list of survey objects
+    public ArrayList<SurveyObject> getSurveyObjects(String sid) {
+        ArrayList<SurveyObject> surveyObjects = new ArrayList<SurveyObject>();
+        SQLiteDatabase db = this.getWritableDatabase();
+        String query = "SELECT * FROM surveyObject where sid = '" + sid + "';";
+        Cursor c = db.rawQuery(query, null);
+        if (c.moveToFirst()) {
+            do {
+                ArrayList<String> options = new ArrayList<String>();
+                // get survey object values
+                String id = c.getString(0);
+                String jpg = c.getString(2);
+                for (int i = 0; i < MyApplication.mOpNum; i++) {
+                    options.add(c.getString(3+i));
+                }
+                // create survey object and add to array
+                SurveyObject so = new SurveyObject(id, sid, jpg, options);
+                surveyObjects.add(so);
+            } while (c.moveToNext());
+        }
+        c.close();
+        db.close();
+        return surveyObjects;
+    }
+
+    // get a list of survey object values
+    public ArrayList<SurveyObjectValue> getSurveyObjectValues(String sid) {
+        ArrayList<SurveyObjectValue> surveyObjectValues = new ArrayList<SurveyObjectValue>();
+        SQLiteDatabase db = this.getWritableDatabase();
+        String query = "SELECT * FROM surveyObjectValue where sid = '" + sid + "';";
+        Cursor c = db.rawQuery(query, null);
+        if (c.moveToFirst()) {
+            do {
+                // get survey object value values
+                String id = c.getString(0);
+                String descrip = c.getString(2);
+                String opNum = c.getString(3);
+                // create survey object value and add to array
+                SurveyObjectValue sov = new SurveyObjectValue(id, sid, descrip, opNum);
+                surveyObjectValues.add(sov);
+            } while (c.moveToNext());
+        }
+        c.close();
+        db.close();
+        return surveyObjectValues;
+    }
+
+    // get a list of survey questions
+    public ArrayList<SurveyQuestion> getSurveyQuestions(String sid) {
+        ArrayList<SurveyQuestion> surveyQuestions = new ArrayList<SurveyQuestion>();
+        SQLiteDatabase db = this.getWritableDatabase();
+        String query = "SELECT * FROM surveyQuestion where sid = '" + sid + "';";
+        Cursor c = db.rawQuery(query, null);
+        if (c.moveToFirst()) {
+            do {
+                // get survey question values
+                String id = c.getString(0);
+                String question = c.getString(2);
+                String resType = c.getString(3);
+                String resVal = c.getString(4);
+                // create survey question and add to array
+                SurveyQuestion sq = new SurveyQuestion(id, sid, question, resType, resVal);
+                surveyQuestions.add(sq);
+            } while (c.moveToNext());
+        }
+        c.close();
+        db.close();
+        return surveyQuestions;
+    }
+
     // get a list of all survey instances
-    public ArrayList<SurveyInstance> getSurveyInstances(String date) {
+    public ArrayList<SurveyInstance> getSurveyInstances(String sid) {
         ArrayList<SurveyInstance> outings = new ArrayList<SurveyInstance>();
         SQLiteDatabase db = this.getWritableDatabase();
-        String query = "SELECT * FROM surveyInstance WHERE date = '" + date + "' and sid = '" + MyApplication.mSurveyId + "';";
+        String query = "SELECT * FROM surveyInstance WHERE sid = '" + sid + "';";
         Cursor c = db.rawQuery(query, null);
         if (c.moveToFirst()) {
             do {
                 // get survey instance values
                 String id = c.getString(0);
-                String sid = c.getString(1);
                 String location = c.getString(2);
                 String observer = c.getString(3);
                 String comment = c.getString(4);
+                String date = c.getString(5);
                 // create survey response object and add to array
                 SurveyInstance si = new SurveyInstance(id, sid, location, observer, comment, date);
                 outings.add(si);
@@ -394,7 +524,30 @@ public class DBAdapter extends SQLiteOpenHelper {
         return sightings;
     }
 
-    // this method returns a list of survey responses for the current survey instance
+    // this method returns a list of survey responses for the current sighting
+    public ArrayList<SurveyResponse> getSightingResponses(String ssId) {
+        ArrayList<SurveyResponse> responses = new ArrayList<SurveyResponse>();
+        SQLiteDatabase db = this.getWritableDatabase();
+        String query = "SELECT * FROM surveyResponse where ssId = '"+ssId+"';";
+        Cursor c = db.rawQuery(query, null);
+        if (c.moveToFirst()) {
+            do {
+                // get survey response values
+                String id = c.getString(0);
+                String siId = c.getString(1);
+                String sqId = c.getString(3);
+                String response = c.getString(4);
+                // create survey response object and add to array
+                SurveyResponse sr = new SurveyResponse(id, siId, ssId, sqId, response);
+                responses.add(sr);
+            } while (c.moveToNext());
+        }
+        c.close();
+        db.close();
+        return responses;
+    }
+
+    // this method returns a list of survey responses for the current sighting
     public ArrayList<SurveyResponse> getSurveyResponses(String siId) {
         ArrayList<SurveyResponse> responses = new ArrayList<SurveyResponse>();
         SQLiteDatabase db = this.getWritableDatabase();

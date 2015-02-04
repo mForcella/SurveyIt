@@ -41,9 +41,8 @@ import java.util.List;
 public class SurveyMain extends Activity {
 
     Activity myActivity = this;
+    String mJpg;
     ArrayList<BasicNameValuePair> surveyInstance; // for posting a new survey instance
-    ArrayList<BasicNameValuePair> surveySighting; // for posting a new survey sighting
-    ArrayList<BasicNameValuePair> surveyResponse; // for posting a new survey response
     String whereClauseSighting = ""; // where clause for deleting rows from survey sighting database
     String whereClauseResponse = ""; // where clause for deleting rows from survey response database
 
@@ -114,6 +113,7 @@ public class SurveyMain extends Activity {
 
                     // get values for each sighting entry and post to database
                     new PostSighting().execute();
+
                 } else {
                     Toast toast = Toast.makeText(myActivity, "No internet connection available...", Toast.LENGTH_SHORT);
                     toast.show();
@@ -131,6 +131,7 @@ public class SurveyMain extends Activity {
                 MyApplication.mListObjects = null;
                 MyApplication.mListQuestions = null;
                 MyApplication.mListObjectVals = null;
+                MyApplication.mListOutings = null;
                 // return to survey select screen
                 Intent yI = new Intent(myActivity, MySurvey.class);
                 yI.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -216,11 +217,6 @@ public class SurveyMain extends Activity {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            // delete image locally
-            File image = new File(MyApplication.mImagePath + MyApplication.mJpg);
-            if (image.exists())
-                if (image.delete())
-                    Log.i("deleteFile", "Image removed locally : " + MyApplication.mJpg);
             return serverResponseCode;
         }
     }
@@ -251,9 +247,16 @@ public class SurveyMain extends Activity {
             }
             // iterate through sighting list and upload each sighting
             for (SurveySighting sighting: MyApplication.mListSightings) {
-                MyApplication.mJpg = sighting.getJpg(); // get image name
+                // create new object image entry for the sighting
+                mJpg = sighting.getJpg(); // get image name
+                if (mJpg != null) {
+                    SurveyObjectImage soi = new SurveyObjectImage(
+                            sighting.getoId(), sighting.getJpg(), sighting.getId(),
+                            sighting.getDate(), null, null);
+                    MyApplication.mListObjectImages.add(soi);
+                }
                 // get sighting values
-                surveySighting = new ArrayList<BasicNameValuePair>();
+                ArrayList<BasicNameValuePair> surveySighting = new ArrayList<BasicNameValuePair>();
                 surveySighting.add(new BasicNameValuePair("id", sighting.getId()));
                 surveySighting.add(new BasicNameValuePair("siid", sighting.getSiId()));
                 surveySighting.add(new BasicNameValuePair("oid", sighting.getoId()));
@@ -272,19 +275,33 @@ public class SurveyMain extends Activity {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-                // upload image attachment, delete locally
-                if (MyApplication.mJpg != null) {
+                // get object image values
+                if (sighting.getJpg() != null) {
+                    ArrayList<BasicNameValuePair> surveyObjectImage = new ArrayList<BasicNameValuePair>();
+                    surveyObjectImage.add(new BasicNameValuePair("oid", sighting.getoId()));
+                    surveyObjectImage.add(new BasicNameValuePair("jpg", sighting.getJpg()));
+                    surveyObjectImage.add(new BasicNameValuePair("ssid", sighting.getId()));
+                    surveyObjectImage.add(new BasicNameValuePair("date", sighting.getDate()));
+                    // post object image to mysql database
+                    httpPost = new HttpPost(MyApplication.postSurveyObjectImageUrl);
+                    try {
+                        httpPost.setEntity(new UrlEncodedFormEntity(surveyObjectImage));
+                        httpClient.execute(httpPost);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    // upload image attachment, move to object image folder
                     new Thread(new Runnable() {
                         public void run() {
-                            uploadFile(MyApplication.mImagePath + MyApplication.mJpg);
+                            uploadFile(MyApplication.mImagePath + mJpg);
                         }
                     }).start();
                 }
             }
             // iterate through response list and upload each response
             for (SurveyResponse response: MyApplication.mListResponses) {
-                surveyResponse = new ArrayList<BasicNameValuePair>();
                 // get sighting values
+                ArrayList<BasicNameValuePair> surveyResponse = new ArrayList<BasicNameValuePair>();
                 surveyResponse.add(new BasicNameValuePair("id", response.getId()));
                 surveyResponse.add(new BasicNameValuePair("siid", response.getSiId()));
                 surveyResponse.add(new BasicNameValuePair("ssid", response.getSsId()));

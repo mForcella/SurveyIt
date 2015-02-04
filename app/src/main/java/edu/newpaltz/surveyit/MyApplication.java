@@ -14,11 +14,13 @@ public class MyApplication extends Application{
     public static String postSurveyInstanceUrl = "http://cs.newpaltz.edu/~forcel96/surveyit/dbRequest/postNewSurveyInstance.php";
     public static String postSurveyResponseUrl = "http://cs.newpaltz.edu/~forcel96/surveyit/dbRequest/postNewSurveyResponse.php";
     public static String postSurveySightingUrl = "http://cs.newpaltz.edu/~forcel96/surveyit/dbRequest/postNewSurveySighting.php";
+    public static String postSurveyObjectImageUrl = "http://cs.newpaltz.edu/~forcel96/surveyit/dbRequest/postNewSurveyObjectImage.php";
     public static String getSurveyObjectValuesUrl = "http://cs.newpaltz.edu/~forcel96/surveyit/dbRequest/getSurveyObjectValues.php";
     public static String getSurveyListUrl = "http://cs.newpaltz.edu/~forcel96/surveyit/dbRequest/getSurveys.php";
     public static String getSurveyObjectsUrl = "http://cs.newpaltz.edu/~forcel96/surveyit/dbRequest/getSurveyObjects.php";
     public static String getSurveyQuestionsUrl = "http://cs.newpaltz.edu/~forcel96/surveyit/dbRequest/getSurveyQuestions.php";
     public static String getSurveyInstanceUrl = "http://cs.newpaltz.edu/~forcel96/surveyit/dbRequest/getSurveyInstance.php";
+    public static String getSurveyObjectImagesUrl = "http://cs.newpaltz.edu/~forcel96/surveyit/dbRequest/getSurveyObjectImages.php";
     public static String attachUrl = "http://cs.newpaltz.edu/~forcel96/surveyit/uploadAttach.php";
     public static String imageUrl = "http://cs.newpaltz.edu/~forcel96/surveyit/images/";
 
@@ -49,6 +51,8 @@ public class MyApplication extends Application{
     public static ArrayList<Survey> mListSurveys;
     public static ArrayList<SurveySighting> mListSightings;
     public static ArrayList<SurveyResponse> mListResponses;
+    public static ArrayList<SurveyInstance> mListOutings;
+    public static ArrayList<SurveyObjectImage> mListObjectImages;
     public static ArrayList<NameValuePair> mSavedText;
 
     public static final int REQUEST_IMAGE_CAPTURE = 1111; // image capture value

@@ -26,11 +26,13 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Bitmap;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
+import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -46,21 +48,19 @@ import android.widget.Toast;
 import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class RecordSighting extends Activity implements LocationListener {
 
     Activity myActivity = this;
-    ArrayList<SurveyResponse> responses = new ArrayList<SurveyResponse>(); // survey responses
-    ArrayList<String> objectList = new ArrayList<String>(); // array for object dropdown values
     ArrayList<NameValuePair> quResp = new ArrayList<NameValuePair>(); // questions and responses
     Spinner spObjects; // dropdown of objects
     SharedPreferences savedVals; // for storing responses
@@ -78,6 +78,7 @@ public class RecordSighting extends Activity implements LocationListener {
         LinearLayout ll = new LinearLayout(myActivity);
         ll.setOrientation(LinearLayout.VERTICAL);
         ll.setPadding(15,15,15,15);
+
         // configure width and height
         LinearLayout.LayoutParams llLP = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT);
@@ -87,11 +88,14 @@ public class RecordSighting extends Activity implements LocationListener {
         TextView objects = new TextView(myActivity);
         objects.setText("Survey Objects:");
         ll.addView(objects);
+
         // add object details to string list
+        ArrayList<String> objectList = new ArrayList<String>(); // array for object dropdown values
         objectList.add("Select an object!"); // dropdown prompt
         for (SurveyObject so: MyApplication.mListObjects) {
             objectList.add(so.getId() + " : " + so.getOptions().get(0));
         }
+
         // create dropdown of survey objects
         spObjects = new Spinner(myActivity);
         ArrayAdapter<String> objectAdapter = new ArrayAdapter<String>(
@@ -106,6 +110,7 @@ public class RecordSighting extends Activity implements LocationListener {
             }
             public void onNothingSelected (AdapterView parent){ }
         });
+
         // check for passed object ID
         if (MyApplication.mObjectId != null) {
             spObjects.setSelection(getIndex(spObjects, MyApplication.mObjectId + " : " +
@@ -138,7 +143,18 @@ public class RecordSighting extends Activity implements LocationListener {
                 // start camera activity
                 Intent cI = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
                 if (cI.resolveActivity(getPackageManager()) != null) {
-                    startActivityForResult(cI, MyApplication.REQUEST_IMAGE_CAPTURE);
+                    // create new file
+                    File image = null;
+                    try {
+                        image = createImageFile();
+                    } catch(IOException e) {
+                        e.printStackTrace();
+                    }
+                    // call camera activity
+                    if (image != null) {
+                        cI.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(image));
+                        startActivityForResult(cI, MyApplication.REQUEST_IMAGE_CAPTURE);
+                    }
                 }
             }
         });
@@ -171,23 +187,48 @@ public class RecordSighting extends Activity implements LocationListener {
 
         // check for saved responses
         savedVals = getSharedPreferences("SavedVals", MODE_PRIVATE);
-        int spinnerValue = savedVals.getInt("object",-1);
-        if(spinnerValue != -1) {
-            spObjects.setSelection(spinnerValue);
+        // object spinner
+        int spinnerIndex = savedVals.getInt("object",-1);
+        if(spinnerIndex != -1) {
+            spObjects.setSelection(spinnerIndex);
         }
-        for (SurveyQuestion sq: MyApplication.mListQuestions) {
-            spinnerValue = savedVals.getInt(sq.getId(),-1);
-            if(spinnerValue != -1) {
-                Spinner response = (Spinner)findViewById(Integer.parseInt(sq.getId()));
-                response.setSelection(spinnerValue);
+        // survey questions and responses
+        for (SurveyQuestion sq: MyApplication.mListQuestions) { // check response for each question
+            String qId = sq.getId(); // get question ID
+            String resType = sq.getResType(); // the response type
+            if (resType.equals("single") | sq.getResType().equals("yesNo")) { // single item spinner
+                spinnerIndex = savedVals.getInt(qId, -1); // get selected index
+                if (spinnerIndex != -1) {
+                    Spinner response = (Spinner) findViewById(Integer.parseInt(qId));
+                    response.setSelection(spinnerIndex);
+                }
+            }
+            if (resType.equals("multi")) { // multi-select spinner
+                Set<String> storedVals = savedVals.getStringSet(qId, null);
+                if (storedVals != null) {
+                    List<String> spinnerValues = new ArrayList<String>(storedVals);
+                    MultiSelectSpinner response = (MultiSelectSpinner) findViewById(Integer.parseInt(qId));
+                    response.setSelection(spinnerValues);
+                }
+            }
+            if (resType.equals("text")) { // edit text
+                String textValue = savedVals.getString(qId, null);
+                if (textValue != null) {
+                    EditText response = (EditText) findViewById(Integer.parseInt(qId));
+                    response.setText(textValue);
+                }
+
             }
         }
-        if (MyApplication.mSavedText != null) {
-            for (NameValuePair qr : MyApplication.mSavedText) {
-                TextView response = (TextView) findViewById(Integer.parseInt(qr.getName()));
-                response.setText(qr.getValue());
-            }
-        }
+    }
+
+    private File createImageFile() throws IOException {
+        // generate file name in format: surveyID_timeStamp
+        String timeStamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new Date());
+        String fileName = "siid-" + MyApplication.mSurveyInstanceId + "_" + timeStamp;
+        MyApplication.mJpg = fileName + ".jpg";
+        Log.i("jpg path", MyApplication.mImagePath + MyApplication.mJpg);
+        return new File(MyApplication.mImagePath + MyApplication.mJpg); // storage directory
     }
 
     /**
@@ -219,6 +260,8 @@ public class RecordSighting extends Activity implements LocationListener {
         if (sq.getResType().equals("single")) {
             TextView tvRow = new TextView(myActivity);
             Spinner spValues = new Spinner(myActivity);
+            RelativeLayout.LayoutParams llSpin = new RelativeLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             tvRow.setText(sq.getQuestion());
             tvRow.setLayoutParams(ll);
             rl.addView(tvRow);
@@ -232,32 +275,36 @@ public class RecordSighting extends Activity implements LocationListener {
                     myActivity, android.R.layout.simple_spinner_dropdown_item, valueList);
             valueAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
             spValues.setAdapter(valueAdapter);
+            spValues.setLayoutParams(llSpin);
             spValues.setId(Integer.parseInt(sq.getId())); // set id to question ID
             rl.addView(spValues);
         }
         // create multi item select dropdown
         if (sq.getResType().equals("multi")) {
             TextView tvRow = new TextView(myActivity);
+            MultiSelectSpinner spValues = new MultiSelectSpinner(myActivity);
+            RelativeLayout.LayoutParams llMulti = new RelativeLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            llMulti.setMargins(0, 15, 0, 0);  // left, top, right, bottom
             tvRow.setText(sq.getQuestion());
             tvRow.setLayoutParams(ll);
             rl.addView(tvRow);
-            Spinner spValues = new Spinner(myActivity);
             // get response values
             String[] values = sq.getResVal().split("\\|");
             ArrayList<String> valueList = new ArrayList<String>();
-            valueList.add("Select a response!");
             Collections.addAll(valueList, values);
             // add values to dropdown
-            ArrayAdapter<String> valueAdapter = new ArrayAdapter<String>(
-                    myActivity, android.R.layout.simple_spinner_dropdown_item, valueList);
-            valueAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spValues.setAdapter(valueAdapter);
+            spValues.setItems(valueList);
+            llMulti.setMargins(0, 15, 0, 0);  // left, top, right, bottom
+            spValues.setLayoutParams(llMulti);
             spValues.setId(Integer.parseInt(sq.getId())); // set id to question ID
             rl.addView(spValues);
         }
         // create yes/no dropdown
         if (sq.getResType().equals("yesNo")) {
             TextView tvRow = new TextView(myActivity);
+            RelativeLayout.LayoutParams llYN = new RelativeLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             tvRow.setText(sq.getQuestion());
             tvRow.setLayoutParams(ll);
             rl.addView(tvRow);
@@ -269,6 +316,7 @@ public class RecordSighting extends Activity implements LocationListener {
                     myActivity, android.R.layout.simple_spinner_dropdown_item, yesNo);
             ynAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
             spYN.setAdapter(ynAdapter);
+            spYN.setLayoutParams(llYN);
             spYN.setId(Integer.parseInt(sq.getId())); // set id to question ID
             rl.addView(spYN);
         }
@@ -295,27 +343,33 @@ public class RecordSighting extends Activity implements LocationListener {
         }
         // get response for each question
         for (SurveyQuestion sq: MyApplication.mListQuestions) {
-            int qId = Integer.parseInt(sq.getId());
-            View v = findViewById(qId);
-            // if text view, get text input value
-            if (v instanceof EditText) {
+            View v = findViewById(Integer.parseInt(sq.getId())); // get view by question ID
+            if (v instanceof EditText) { // if text view, get text input value
                 if (!((EditText) v).getText().toString().equals("")) {
                     String response = ((EditText) v).getText().toString();
                     quResp.add(new BasicNameValuePair(sq.getId(), response));
-                    MyApplication.mSavedText.add(new BasicNameValuePair(sq.getId(),response));
+                    prefEditor.putString(sq.getId(), ((EditText) v).getText().toString());
+                    //MyApplication.mSavedText.add(new BasicNameValuePair(sq.getId(),response));
                 } else {
                     done = false;
                 }
-            } else {
-                // if spinner, get item selected value
-                if (v instanceof Spinner) {
-                    if (((Spinner) v).getSelectedItemPosition() != 0) {
-                        String response = ((Spinner) v).getSelectedItem().toString();
-                        quResp.add(new BasicNameValuePair(sq.getId(), response));
-                        prefEditor.putInt(sq.getId(), ((Spinner) v).getSelectedItemPosition());
-                    } else {
-                        done = false;
-                    }
+            }
+            else if (v instanceof MultiSelectSpinner) { // if multi spinner, get string set
+                if (((MultiSelectSpinner) v).getSelectedItemsAsString().length() != 0) {
+                    String response = ((MultiSelectSpinner) v).getSelectedItemsAsString();
+                    quResp.add(new BasicNameValuePair(sq.getId(), response));
+                    prefEditor.putStringSet(sq.getId(), new HashSet<String>(((MultiSelectSpinner) v).getSelectedStrings()));
+                } else {
+                    done = false;
+                }
+            }
+            else if (v instanceof Spinner) { // if spinner, get item selected index
+                if (((Spinner) v).getSelectedItemPosition() != 0) {
+                    String response = ((Spinner) v).getSelectedItem().toString();
+                    quResp.add(new BasicNameValuePair(sq.getId(), response));
+                    prefEditor.putInt(sq.getId(), ((Spinner) v).getSelectedItemPosition());
+                } else {
+                    done = false;
                 }
             }
         }
@@ -346,6 +400,7 @@ public class RecordSighting extends Activity implements LocationListener {
             e.printStackTrace();
         }
         // create a SurveyResponse for each question
+        ArrayList<SurveyResponse> responses = new ArrayList<SurveyResponse>(); // survey responses
         for (int i = 0; i < MyApplication.mQuNum; i++) {
             String sqid = quResp.get(i).getName();
             String response = quResp.get(i).getValue();
@@ -422,32 +477,10 @@ public class RecordSighting extends Activity implements LocationListener {
 
     /**
      * Method called when returning from camera activity.
-     * Stores the image locally and returns to calling activity.
+     * Returns to calling activity.
      */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == MyApplication.REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
-
-            // get thumbnail
-            Bitmap thumbnail = (Bitmap) data.getExtras().get("data");
-            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-            thumbnail.compress(Bitmap.CompressFormat.JPEG, 100, bytes);
-
-            // generate file name in format: speciesID_commonName_timeStamp
-            String timeStamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new Date());
-            String fileName = "siid-" + MyApplication.mSurveyInstanceId + "_" + timeStamp;
-            MyApplication.mJpg = fileName + ".jpg";
-            File image = new File(MyApplication.mImagePath + MyApplication.mJpg); // storage directory
-            //MyApplication.mImagePath = image.getAbsolutePath(); // saving file path
-            try {
-                FileOutputStream fo = new FileOutputStream(image);
-                fo.write(bytes.toByteArray());
-                fo.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
         // image saved successfully; return to previous screen
         Intent mI = new Intent(this.getApplication(), RecordSighting.class);
         mI.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);

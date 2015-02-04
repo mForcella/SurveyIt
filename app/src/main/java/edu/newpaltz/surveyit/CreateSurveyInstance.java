@@ -27,17 +27,12 @@ import android.widget.EditText;
 import android.widget.Spinner;
 
 import java.io.IOException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 
 public class CreateSurveyInstance extends Activity {
 
     Activity myActivity = this;
     EditText etSurvLoc, etSurvObs, etSurvComm; // text boxes to enter new outing details
-    ArrayList<SurveyInstance> outings; // to retrieve survey instances from sqlite database
-    ArrayList<String> outingList = new ArrayList<String>(); // string list to populate dropdown
 
     /**
      * Method called when activity is first launched.
@@ -51,27 +46,24 @@ public class CreateSurveyInstance extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.create_survey_instance);
-        // get current date
-        DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd");
-        MyApplication.mSurveyDate = dateFormat.format(new Date());
-
-        // get survey instances for current survey from today's date
+        // get survey instances for current survey
         try {
             DBAdapter db = new DBAdapter(this);
-            outings = db.getSurveyInstances(MyApplication.mSurveyDate);
+            MyApplication.mListOutings = db.getSurveyInstances(MyApplication.mSurveyId);
             db.close();
         }catch (IOException e) {
             e.printStackTrace();
         }
         // add survey instances to dropdown
+        ArrayList<String> outingList = new ArrayList<String>(); // string list to populate dropdown
         Spinner spOutings = (Spinner) findViewById(R.id.outingSelect);
-        if (outings.size() == 0) {
+        if (MyApplication.mListOutings.size() == 0) {
             outingList.add("No outings to resume");
         } else {
             outingList.add("Select an outing");
             // add survey instance values to string list
-            for (SurveyInstance si : outings) {
-                outingList.add(si.getId() + ": " + si.getObserver() + ", " + si.getLocation());
+            for (SurveyInstance si : MyApplication.mListOutings) {
+                outingList.add(si.getId() + ": " + si.getObserver() + ", " + si.getLocation() + ", " + si.getDate());
             }
         }
         ArrayAdapter<String> outingAdapter = new ArrayAdapter<String>(
@@ -134,13 +126,14 @@ public class CreateSurveyInstance extends Activity {
                 // get selected survey instance ID
                 String siid = parent.getItemAtPosition(pos).toString().split(":")[0];
                 // get values for the selected survey instance
-                for (SurveyInstance si: outings) {
+                for (SurveyInstance si: MyApplication.mListOutings) {
                     // find survey object that matches survey instance ID from dropdown
                     if (si.getId().equals(siid)) {
                         MyApplication.mSurveyInstanceId = siid;
                         MyApplication.mSurveyLoc = si.getLocation();
                         MyApplication.mSurveyObs = si.getObserver();
                         MyApplication.mSurveyComm = si.getComment();
+                        MyApplication.mSurveyDate = si.getDate();
                     }
                 }
 

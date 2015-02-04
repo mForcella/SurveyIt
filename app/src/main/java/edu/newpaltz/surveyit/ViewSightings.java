@@ -21,7 +21,6 @@ import java.util.ArrayList;
 public class ViewSightings extends Activity {
 
     Activity myActivity = this;
-    ArrayList<SurveyResponse> responses;
 
     /**
      * Method called when activity is first launched.
@@ -70,11 +69,11 @@ public class ViewSightings extends Activity {
                 final SurveySighting sighting = mList.get(position);
                 if (sighting != null) {
                     String object = MyApplication.getSurveyObject(sighting.getoId());
-                    String time = sighting.getDate().split(" ")[1];
+                    String date = sighting.getDate();
                     // setting list_item views
                     ( (TextView) view.findViewById(R.id.tv_name) ).setTextSize(20);
                     ( (TextView) view.findViewById(R.id.tv_name) ).setText(
-                            object + " : " + time);
+                            object + " : " + date);
                     // go to individual sighting page
                     ( view.findViewById(R.id.tv_name) ).setOnClickListener(new View.OnClickListener() {
                         public void onClick(View v) {
@@ -87,19 +86,20 @@ public class ViewSightings extends Activity {
                             myIntent.putExtra("lng", sighting.getLng());
                             myIntent.putExtra("jpg", sighting.getJpg());
                             // get response values for selected sighting
+                            ArrayList<SurveyResponse> responses;
                             try {
                                 DBAdapter db = new DBAdapter(myActivity);
-                                responses = db.getSurveyResponses(MyApplication.mSurveyInstanceId);
+                                responses = db.getSightingResponses(sighting.getId());
                                 db.close();
+                                for (int i = 0; i < MyApplication.mQuNum; i++) {
+                                    myIntent.putExtra("question"+i, MyApplication.getSurveyQuestion(responses.get(i).getSqId()));
+                                    myIntent.putExtra("response"+i, responses.get(i).getResponse());
+                                }
+                                myIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                                ViewSightings.this.startActivity(myIntent);
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
-                            for (int i = 0; i < MyApplication.mQuNum; i++) {
-                                myIntent.putExtra("question" + i, MyApplication.getSurveyQuestion(responses.get(i).getSqId()));
-                                myIntent.putExtra("response" + i, responses.get(i).getResponse());
-                            }
-                            myIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                            ViewSightings.this.startActivity(myIntent);
                         }
                     });
                 }

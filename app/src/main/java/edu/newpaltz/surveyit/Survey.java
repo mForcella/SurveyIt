@@ -9,7 +9,7 @@ public class Survey {
     String id, name, desc, date;
     int opNum;
 
-    public Survey(String id, String name, String desc, String date, int opNum) {
+    public Survey(String id, String name, String desc, int opNum, String date) {
         this.id = id;
         this.name = name;
         this.desc = desc;

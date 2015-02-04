@@ -7,13 +7,11 @@ package edu.newpaltz.surveyit;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Bundle;
-import android.os.Environment;
+import android.support.v4.view.ViewPager;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.LinearLayout.LayoutParams;
 import android.widget.RelativeLayout;
@@ -21,7 +19,6 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.File;
 import java.util.ArrayList;
 
 public class DisplayObject extends Activity {
@@ -42,26 +39,35 @@ public class DisplayObject extends Activity {
         // get object data
         getObjectData();
         // create linear layout
-        ScrollView sv = new ScrollView(myActivity);
+        ScrollView sv = new ScrollView(this);
         LinearLayout ll = new LinearLayout(this);
         ll.setOrientation(LinearLayout.VERTICAL);
+        ll.setPadding(15,15,15,15);
         // configure width and height
-        LayoutParams llLP = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
-        ll.setLayoutParams(llLP);
+        RelativeLayout.LayoutParams rlp = new RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT);
+        sv.setLayoutParams(rlp);
+        ll.setLayoutParams(rlp);
         // create image view
-        ImageView iv = new ImageView(this);
-        LayoutParams llIV = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-        iv.setLayoutParams(llIV);
-        // set object image if available
-        if (!jpg.equals("NULL")) {
-            String path = Environment.getExternalStorageDirectory().getPath()+"/"+jpg;
-            File imgFile = new File(path);
-            if(imgFile.exists()){
-                Bitmap myBitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
-                iv.setImageBitmap(myBitmap);
+        LayoutParams llIV = new LayoutParams(500,500);
+        llIV.gravity = Gravity.CENTER;
+        // get object image list
+        ArrayList<SurveyObjectImage> objectImages = new ArrayList<SurveyObjectImage>();
+        for (SurveyObjectImage soi: MyApplication.mListObjectImages) {
+            if (soi.getoId().equals(id)) {
+                objectImages.add(soi);
             }
         }
-        ll.addView(iv);
+        // add image list to image view
+        String[] images = new String[objectImages.size()];
+        for (int i = 0; i < images.length; i++) {
+            images[i] = objectImages.get(i).getJpg();
+        }
+        ViewPager vp = new ViewPager(this);
+        vp.setLayoutParams(llIV);
+        ImageAdapter ia = new ImageAdapter(this,images);
+        vp.setAdapter(ia);
+        ll.addView(vp);
         // create a text view for each option
         LayoutParams llTV = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
         for (int i = 0; i < options.size(); i++) {
@@ -74,6 +80,10 @@ public class DisplayObject extends Activity {
         // create button to record a sighting
         Button recordBtn = new Button(this);
         recordBtn.setText("Record a sighting");
+        RelativeLayout.LayoutParams llRec = new RelativeLayout.LayoutParams(
+                LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+        llRec.addRule(RelativeLayout.CENTER_HORIZONTAL, RelativeLayout.TRUE);
+        recordBtn.setLayoutParams(llRec);
         recordBtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 Intent yI = new Intent(myActivity, RecordSighting.class);
@@ -89,10 +99,10 @@ public class DisplayObject extends Activity {
                 LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
         navBtn.setLayoutParams(llNav);
         Button prevBtn = new Button(this);
+        prevBtn.setText("Previous");
         RelativeLayout.LayoutParams llPrev = new RelativeLayout.LayoutParams(
                 LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
         llPrev.addRule(RelativeLayout.ALIGN_PARENT_LEFT, RelativeLayout.TRUE);
-        prevBtn.setText("Previous");
         prevBtn.setLayoutParams(llPrev);
         prevBtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {

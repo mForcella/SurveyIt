@@ -9,11 +9,13 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -28,7 +30,7 @@ public class DisplaySighting extends Activity {
 
     Activity myActivity = this;
     String id, object, lat, lng, date, jpg; // values for passing between intents
-    ArrayList<BasicNameValuePair> quResp = new ArrayList<BasicNameValuePair>(); // for passing values
+    ArrayList<BasicNameValuePair> quResp; // for passing values
     ArrayList<SurveyResponse> responses;
 
     /**
@@ -43,6 +45,7 @@ public class DisplaySighting extends Activity {
         // get object data
         getSightingData();
         // create linear layout
+        ScrollView sv = new ScrollView(this);
         LinearLayout ll = new LinearLayout(this);
         ll.setOrientation(LinearLayout.VERTICAL);
         ll.setPadding(15,15,15,15);
@@ -54,19 +57,21 @@ public class DisplaySighting extends Activity {
         LinearLayout.LayoutParams llParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         // set object image if available
+        ImageView iv = new ImageView(this);
+        LinearLayout.LayoutParams llIV = new LinearLayout.LayoutParams(500,500);
+        llIV.gravity = Gravity.CENTER;
+        iv.setLayoutParams(llIV);
         if (!jpg.equals("null")) {
             try {
                 FileInputStream in = new FileInputStream(jpg);
                 BufferedInputStream inputStream = new BufferedInputStream(in, 8192);
                 Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-                ImageView iv = new ImageView(this);
-                iv.setLayoutParams(llParams);
                 iv.setImageBitmap(bitmap);
-                ll.addView(iv);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
+        ll.addView(iv);
         // display object, date, latitude and longitude
         TextView tvObject = new TextView(this);
         tvObject.setLayoutParams(llParams);
@@ -117,7 +122,8 @@ public class DisplaySighting extends Activity {
         navBtn.addView(prevBtn);
         navBtn.addView(nextBtn);
         ll.addView(navBtn);
-        setContentView(ll);
+        sv.addView(ll);
+        setContentView(sv);
     }
 
     /**
@@ -125,6 +131,7 @@ public class DisplaySighting extends Activity {
      */
     public void getSightingData() {
         Intent intent = getIntent();
+        quResp = new ArrayList<BasicNameValuePair>();
         id = intent.getStringExtra("id");
         object = intent.getStringExtra("object");
         date = intent.getStringExtra("date");
@@ -155,8 +162,8 @@ public class DisplaySighting extends Activity {
         intent.putExtra("lng",sighting.getLng());
         intent.putExtra("jpg",sighting.getJpg());
         for (int i = 0; i < MyApplication.mQuNum; i++) {
-            intent.putExtra("question" + i, MyApplication.getSurveyQuestion(responses.get(i).getSqId()));
-            intent.putExtra("response" + i, responses.get(i).getResponse());
+            intent.putExtra("question"+i, MyApplication.getSurveyQuestion(responses.get(i).getSqId()));
+            intent.putExtra("response"+i, responses.get(i).getResponse());
         }
     }
 
@@ -179,7 +186,7 @@ public class DisplaySighting extends Activity {
                     // get response values for previous sighting
                     try {
                         DBAdapter db = new DBAdapter(myActivity);
-                        responses = db.getSurveyResponses(MyApplication.mSurveyInstanceId);
+                        responses = db.getSightingResponses(prevSighting.getId());
                         db.close();
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -216,7 +223,7 @@ public class DisplaySighting extends Activity {
                     // get response values for next sighting
                     try {
                         DBAdapter db = new DBAdapter(myActivity);
-                        responses = db.getSurveyResponses(MyApplication.mSurveyInstanceId);
+                        responses = db.getSightingResponses(nextSighting.getId());
                         db.close();
                     } catch (IOException e) {
                         e.printStackTrace();
