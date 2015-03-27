@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.net.SocketException;
 import java.util.List;
 
 import org.apache.http.HttpEntity;
@@ -37,15 +38,16 @@ public class JSONParser {
     // function get json from url by making HTTP GET method
     public JSONObject makeHttpRequest(String url, List<NameValuePair> params) {
 
+        String requestUrl = url;
         // Making HTTP request
         try {
             DefaultHttpClient httpClient = new DefaultHttpClient();
             // check if params added
             if (params != null) {
                 String paramString = URLEncodedUtils.format(params, "utf-8");
-                url += "?" + paramString;
+                requestUrl += "?" + paramString;
             }
-            HttpGet httpGet = new HttpGet(url);
+            HttpGet httpGet = new HttpGet(requestUrl);
             HttpResponse httpResponse = httpClient.execute(httpGet);
             HttpEntity httpEntity = httpResponse.getEntity();
             is = httpEntity.getContent();
@@ -73,9 +75,13 @@ public class JSONParser {
                 Log.i("JSON Parser", "Query returned no results");
                 return null;
             }
+        } catch (SocketException se) {
+            Log.e("Buffer Error", "Retry connection to url:"+url);
+            makeHttpRequest(url, params);
         } catch (Exception e) {
             Log.e("Buffer Error", "Error converting result " + e.toString());
         }
+
 
         // try parse the string to a JSON object
         try {
